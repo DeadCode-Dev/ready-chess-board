@@ -7,12 +7,12 @@ interface MoveHistoryProps {
 
 export const MoveHistory = ({ moves }: MoveHistoryProps) => {
   return (
-    <Card className="shadow-lg">
+    <Card className="shadow-lg rounded-xl transition-all duration-300 hover:shadow-xl">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg">Move History</CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-64 w-full rounded border bg-muted/30 p-3">
+        <ScrollArea className="h-64 w-full rounded-lg border bg-muted/30 p-3">
           {moves.length === 0 ? (
             <p className="text-sm text-muted-foreground">No moves yet</p>
           ) : (
@@ -20,7 +20,7 @@ export const MoveHistory = ({ moves }: MoveHistoryProps) => {
               {moves.map((move, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-2 text-sm font-mono bg-background px-2 py-1 rounded"
+                  className="flex items-center gap-2 text-sm font-mono bg-background px-2 py-1 rounded-md transition-all duration-200 hover:bg-accent hover:shadow-sm"
                 >
                   <span className="text-muted-foreground w-8">
                     {Math.floor(index / 2) + 1}.
