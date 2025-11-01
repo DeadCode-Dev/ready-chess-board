@@ -42,6 +42,11 @@ const INITIAL_HISTORY: GameHistory[] = [
 
 const STORAGE_KEY = 'chess_saved_game';
 
+// Lichess provides a free API for chess board analysis
+// Documentation: https://lichess.org/api
+// Note: For analysis, you can use the Lichess opening explorer or external engines
+const LICHESS_ANALYSIS_URL = 'https://lichess.org/analysis';
+
 export const ChessBoard = () => {
   const [game, setGame] = useState(() => {
     // Try to load saved game
@@ -322,6 +327,14 @@ export const ChessBoard = () => {
     }
   };
 
+  const analyzePosition = () => {
+    // Open Lichess analysis board with current FEN position
+    const fen = game.fen();
+    const url = `${LICHESS_ANALYSIS_URL}/${encodeURIComponent(fen)}`;
+    window.open(url, '_blank');
+    toast.info("Opening analysis board...");
+  };
+
   const navigateToMove = (index: number) => {
     if (index >= 0 && index < history.length) {
       const historyState = history[index];
@@ -389,7 +402,10 @@ export const ChessBoard = () => {
             <div className="text-lg font-semibold">
               Turn: <span className="text-primary">{currentTurn === "w" ? "White" : "Black"}</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={analyzePosition} variant="outline" size="sm" className="transition-all duration-200 hover:shadow-md">
+                Analyze
+              </Button>
               <Button onClick={downloadPGN} variant="outline" size="sm" className="transition-all duration-200 hover:shadow-md">
                 Export PGN
               </Button>
