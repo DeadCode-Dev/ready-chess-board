@@ -50,6 +50,31 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
+## Features
+
+### Chess Game Features
+- **Full Chess Rules**: Includes castling, en passant, pawn promotion, check, and checkmate detection
+- **Move History**: Track all moves made during the game
+- **Captured Pieces**: View pieces captured by each player
+- **Move Navigation**: Navigate backward and forward through move history
+
+### New Features
+- **React Icons**: Chess pieces now use FontAwesome icons from react-icons for a modern look
+- **PGN Export**: Download game in PGN (Portable Game Notation) format
+- **PGN Sharing**: Copy PGN to clipboard for easy sharing
+- **Auto-Save**: Games automatically save to localStorage
+- **Resume Games**: Continue unfinished games after page reload
+- **Smart Game Management**: Dialog prompts to continue or start new game when an unfinished game exists
+- **Finished Game Protection**: Prevents continuing games that ended in checkmate, stalemate, or draw
+- **Position Analysis**: Analyze current board position using Lichess's free analysis board (opens in new tab)
+
+### Chess Analysis API
+This project integrates with **Lichess.org's free analysis board** for position analysis:
+- Click the "Analyze" button to open the current position in Lichess's analysis board
+- Lichess provides free access to Stockfish engine analysis
+- No API key required
+- Documentation: https://lichess.org/api
+
 ## What technologies are used for this project?
 
 This project is built with:
@@ -59,6 +84,8 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- chess.js (Chess game logic)
+- react-icons (Chess piece icons)
 
 ## How can I deploy this project?
 
