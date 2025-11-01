@@ -12,6 +12,12 @@ const PIECE_SYMBOLS: Record<string, string> = {
   bp: "♟", bn: "♞", bb: "♝", br: "♜", bq: "♛", bk: "♚",
 };
 
+interface GameHistory {
+  fen: string;
+  moveHistory: string[];
+  capturedPieces: { white: string[]; black: string[] };
+}
+
 export const ChessBoard = () => {
   const [game, setGame] = useState(new Chess());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
@@ -22,7 +28,9 @@ export const ChessBoard = () => {
     white: [],
     black: [],
   });
-  const [historyFens, setHistoryFens] = useState<string[]>([new Chess().fen()]);
+  const [history, setHistory] = useState<GameHistory[]>([
+    { fen: new Chess().fen(), moveHistory: [], capturedPieces: { white: [], black: [] } }
+  ]);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
 
   const board = game.board();
@@ -32,7 +40,7 @@ export const ChessBoard = () => {
   const isStalemate = game.isStalemate();
   const isDraw = game.isDraw();
   const canGoBack = currentMoveIndex > 0;
-  const canGoForward = currentMoveIndex < historyFens.length - 1;
+  const canGoForward = currentMoveIndex < history.length - 1;
 
   useEffect(() => {
     if (isCheckmate) {
@@ -64,25 +72,27 @@ export const ChessBoard = () => {
           setMoveHistory(newMoveHistory);
           
           // Update captured pieces
+          let newCapturedPieces = { ...capturedPieces };
           if (result.captured) {
             const capturedPiece = `${result.color === "w" ? "b" : "w"}${result.captured}`;
-            setCapturedPieces((prev) => ({
-              ...prev,
+            newCapturedPieces = {
+              ...capturedPieces,
               [result.color === "w" ? "black" : "white"]: [
-                ...prev[result.color === "w" ? "black" : "white"],
+                ...capturedPieces[result.color === "w" ? "black" : "white"],
                 capturedPiece,
               ],
-            }));
+            };
+            setCapturedPieces(newCapturedPieces);
           }
 
           const newFen = game.fen();
           // If we're not at the latest move, truncate history
-          const newHistoryFens = currentMoveIndex === historyFens.length - 1 
-            ? [...historyFens, newFen]
-            : [...historyFens.slice(0, currentMoveIndex + 1), newFen];
+          const newHistory = currentMoveIndex === history.length - 1 
+            ? [...history, { fen: newFen, moveHistory: newMoveHistory, capturedPieces: newCapturedPieces }]
+            : [...history.slice(0, currentMoveIndex + 1), { fen: newFen, moveHistory: newMoveHistory, capturedPieces: newCapturedPieces }];
           
-          setHistoryFens(newHistoryFens);
-          setCurrentMoveIndex(newHistoryFens.length - 1);
+          setHistory(newHistory);
+          setCurrentMoveIndex(newHistory.length - 1);
           setGame(new Chess(game.fen()));
           setSelectedSquare(null);
           setLegalMoves([]);
@@ -121,16 +131,19 @@ export const ChessBoard = () => {
     setLastMove(null);
     setMoveHistory([]);
     setCapturedPieces({ white: [], black: [] });
-    setHistoryFens([newGame.fen()]);
+    setHistory([{ fen: newGame.fen(), moveHistory: [], capturedPieces: { white: [], black: [] } }]);
     setCurrentMoveIndex(0);
     toast.info("Game reset!");
   };
 
   const navigateToMove = (index: number) => {
-    if (index >= 0 && index < historyFens.length) {
-      const newGame = new Chess(historyFens[index]);
+    if (index >= 0 && index < history.length) {
+      const historyState = history[index];
+      const newGame = new Chess(historyState.fen);
       setGame(newGame);
       setCurrentMoveIndex(index);
+      setMoveHistory(historyState.moveHistory);
+      setCapturedPieces(historyState.capturedPieces);
       setSelectedSquare(null);
       setLegalMoves([]);
       setLastMove(null);
@@ -203,7 +216,7 @@ export const ChessBoard = () => {
               disabled={!canGoBack}
             />
             <div className="text-sm text-muted-foreground font-medium">
-              Move {currentMoveIndex} of {historyFens.length - 1}
+              Move {currentMoveIndex} of {history.length - 1}
             </div>
             <PawnNavigationButton
               direction="forward"
