@@ -1,16 +1,21 @@
 import { useState, useEffect } from "react";
-import { Chess, Square, PieceSymbol, Color } from "chess.js";
+import { Chess, Square, PieceSymbol } from "chess.js";
 import { ChessSquare } from "./ChessSquare";
 import { CapturedPieces } from "./CapturedPieces";
 import { MoveHistory } from "./MoveHistory";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { PawnNavigationButton } from "./PawnNavigationButton";
-
-const PIECE_SYMBOLS: Record<string, string> = {
-  wp: "♙", wn: "♘", wb: "♗", wr: "♖", wq: "♕", wk: "♔",
-  bp: "♟", bn: "♞", bb: "♝", br: "♜", bq: "♛", bk: "♚",
-};
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -20,22 +25,104 @@ interface GameHistory {
   capturedPieces: { white: string[]; black: string[] };
 }
 
+interface SavedGame {
+  fen: string;
+  moveHistory: string[];
+  capturedPieces: { white: string[]; black: string[] };
+  history: GameHistory[];
+  currentMoveIndex: number;
+  timestamp: number;
+  isFinished: boolean;
+  result?: 'checkmate' | 'stalemate' | 'draw';
+}
+
 const INITIAL_HISTORY: GameHistory[] = [
   { fen: INITIAL_FEN, moveHistory: [], capturedPieces: { white: [], black: [] } }
 ];
 
+const STORAGE_KEY = 'chess_saved_game';
+
 export const ChessBoard = () => {
-  const [game, setGame] = useState(new Chess());
+  const [game, setGame] = useState(() => {
+    // Try to load saved game
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const savedGame: SavedGame = JSON.parse(saved);
+        if (!savedGame.isFinished) {
+          return new Chess(savedGame.fen);
+        }
+      } catch (e) {
+        console.error('Failed to load saved game:', e);
+      }
+    }
+    return new Chess();
+  });
+  
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [legalMoves, setLegalMoves] = useState<Square[]>([]);
   const [lastMove, setLastMove] = useState<{ from: Square; to: Square } | null>(null);
-  const [moveHistory, setMoveHistory] = useState<string[]>([]);
-  const [capturedPieces, setCapturedPieces] = useState<{ white: string[]; black: string[] }>({
-    white: [],
-    black: [],
+  const [moveHistory, setMoveHistory] = useState<string[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const savedGame: SavedGame = JSON.parse(saved);
+        if (!savedGame.isFinished) {
+          return savedGame.moveHistory;
+        }
+      } catch (e) {
+        console.error('Failed to load saved game:', e);
+      }
+    }
+    return [];
   });
-  const [history, setHistory] = useState<GameHistory[]>(INITIAL_HISTORY);
-  const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
+  
+  const [capturedPieces, setCapturedPieces] = useState<{ white: string[]; black: string[] }>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const savedGame: SavedGame = JSON.parse(saved);
+        if (!savedGame.isFinished) {
+          return savedGame.capturedPieces;
+        }
+      } catch (e) {
+        console.error('Failed to load saved game:', e);
+      }
+    }
+    return { white: [], black: [] };
+  });
+  
+  const [history, setHistory] = useState<GameHistory[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const savedGame: SavedGame = JSON.parse(saved);
+        if (!savedGame.isFinished) {
+          return savedGame.history;
+        }
+      } catch (e) {
+        console.error('Failed to load saved game:', e);
+      }
+    }
+    return INITIAL_HISTORY;
+  });
+  
+  const [currentMoveIndex, setCurrentMoveIndex] = useState(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const savedGame: SavedGame = JSON.parse(saved);
+        if (!savedGame.isFinished) {
+          return savedGame.currentMoveIndex;
+        }
+      } catch (e) {
+        console.error('Failed to load saved game:', e);
+      }
+    }
+    return 0;
+  });
+  
+  const [showSavedGameDialog, setShowSavedGameDialog] = useState(false);
 
   const board = game.board();
   const currentTurn = game.turn();
@@ -43,8 +130,24 @@ export const ChessBoard = () => {
   const isCheckmate = game.isCheckmate();
   const isStalemate = game.isStalemate();
   const isDraw = game.isDraw();
+  const isGameFinished = isCheckmate || isStalemate || isDraw;
   const canGoBack = currentMoveIndex > 0;
   const canGoForward = currentMoveIndex < history.length - 1;
+
+  // Save game to localStorage
+  useEffect(() => {
+    const savedGame: SavedGame = {
+      fen: game.fen(),
+      moveHistory,
+      capturedPieces,
+      history,
+      currentMoveIndex,
+      timestamp: Date.now(),
+      isFinished: isGameFinished,
+      result: isCheckmate ? 'checkmate' : isStalemate ? 'stalemate' : isDraw ? 'draw' : undefined,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(savedGame));
+  }, [game, moveHistory, capturedPieces, history, currentMoveIndex, isGameFinished, isCheckmate, isStalemate, isDraw]);
 
   useEffect(() => {
     if (isCheckmate) {
@@ -127,7 +230,32 @@ export const ChessBoard = () => {
     }
   };
 
+  const checkForSavedGame = () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const savedGame: SavedGame = JSON.parse(saved);
+        // Only show dialog if there's an unfinished game with moves
+        if (!savedGame.isFinished && savedGame.moveHistory.length > 0) {
+          setShowSavedGameDialog(true);
+          return true;
+        }
+      } catch (e) {
+        console.error('Failed to check saved game:', e);
+      }
+    }
+    return false;
+  };
+
   const resetGame = () => {
+    // Check if there's a saved unfinished game
+    if (checkForSavedGame()) {
+      return; // Dialog will handle the reset
+    }
+    performReset();
+  };
+
+  const performReset = () => {
     const newGame = new Chess();
     setGame(newGame);
     setSelectedSquare(null);
@@ -137,7 +265,61 @@ export const ChessBoard = () => {
     setCapturedPieces({ white: [], black: [] });
     setHistory(INITIAL_HISTORY);
     setCurrentMoveIndex(0);
-    toast.info("Game reset!");
+    localStorage.removeItem(STORAGE_KEY);
+    toast.info("New game started!");
+  };
+
+  const continueSavedGame = () => {
+    setShowSavedGameDialog(false);
+    toast.info("Continuing saved game!");
+  };
+
+  const deleteSavedGame = () => {
+    setShowSavedGameDialog(false);
+    performReset();
+  };
+
+  const exportPGN = () => {
+    const pgn = game.pgn();
+    return pgn;
+  };
+
+  const downloadPGN = () => {
+    const pgn = exportPGN();
+    const blob = new Blob([pgn], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `chess-game-${Date.now()}.pgn`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("PGN exported!");
+  };
+
+  const sharePGN = () => {
+    const pgn = exportPGN();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(pgn).then(() => {
+        toast.success("PGN copied to clipboard!");
+      }).catch(() => {
+        toast.error("Failed to copy PGN to clipboard");
+      });
+    } else {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = pgn;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        toast.success("PGN copied to clipboard!");
+      } catch (err) {
+        toast.error("Failed to copy PGN to clipboard");
+      }
+      document.body.removeChild(textarea);
+    }
   };
 
   const navigateToMove = (index: number) => {
@@ -188,7 +370,7 @@ export const ChessBoard = () => {
                   <ChessSquare
                     key={square}
                     square={square}
-                    piece={piece ? PIECE_SYMBOLS[`${piece.color}${piece.type}`] : null}
+                    piece={piece ? `${piece.color}${piece.type}` : null}
                     isLight={isLight}
                     isSelected={isSelected}
                     isLegalMove={isLegalMove}
@@ -207,9 +389,17 @@ export const ChessBoard = () => {
             <div className="text-lg font-semibold">
               Turn: <span className="text-primary">{currentTurn === "w" ? "White" : "Black"}</span>
             </div>
-            <Button onClick={resetGame} variant="outline" className="transition-all duration-200 hover:shadow-md">
-              New Game
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={downloadPGN} variant="outline" size="sm" className="transition-all duration-200 hover:shadow-md">
+                Export PGN
+              </Button>
+              <Button onClick={sharePGN} variant="outline" size="sm" className="transition-all duration-200 hover:shadow-md">
+                Share PGN
+              </Button>
+              <Button onClick={resetGame} variant="outline" className="transition-all duration-200 hover:shadow-md">
+                New Game
+              </Button>
+            </div>
           </div>
           
           {/* Move Navigation Controls */}
@@ -233,11 +423,27 @@ export const ChessBoard = () => {
 
       <div className="flex flex-col gap-4 w-full lg:w-80">
         <CapturedPieces
-          whiteCaptured={capturedPieces.white.map((p) => PIECE_SYMBOLS[p])}
-          blackCaptured={capturedPieces.black.map((p) => PIECE_SYMBOLS[p])}
+          whiteCaptured={capturedPieces.white}
+          blackCaptured={capturedPieces.black}
         />
         <MoveHistory moves={moveHistory} />
       </div>
+
+      {/* Saved Game Dialog */}
+      <AlertDialog open={showSavedGameDialog} onOpenChange={setShowSavedGameDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Saved Game Found</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have an unfinished game in progress. Would you like to continue playing or start a new game?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={deleteSavedGame}>New Game</AlertDialogCancel>
+            <AlertDialogAction onClick={continueSavedGame}>Continue</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
