@@ -12,11 +12,17 @@ const PIECE_SYMBOLS: Record<string, string> = {
   bp: "♟", bn: "♞", bb: "♝", br: "♜", bq: "♛", bk: "♚",
 };
 
+const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 interface GameHistory {
   fen: string;
   moveHistory: string[];
   capturedPieces: { white: string[]; black: string[] };
 }
+
+const INITIAL_HISTORY: GameHistory[] = [
+  { fen: INITIAL_FEN, moveHistory: [], capturedPieces: { white: [], black: [] } }
+];
 
 export const ChessBoard = () => {
   const [game, setGame] = useState(new Chess());
@@ -28,9 +34,7 @@ export const ChessBoard = () => {
     white: [],
     black: [],
   });
-  const [history, setHistory] = useState<GameHistory[]>([
-    { fen: new Chess().fen(), moveHistory: [], capturedPieces: { white: [], black: [] } }
-  ]);
+  const [history, setHistory] = useState<GameHistory[]>(INITIAL_HISTORY);
   const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
 
   const board = game.board();
@@ -131,7 +135,7 @@ export const ChessBoard = () => {
     setLastMove(null);
     setMoveHistory([]);
     setCapturedPieces({ white: [], black: [] });
-    setHistory([{ fen: newGame.fen(), moveHistory: [], capturedPieces: { white: [], black: [] } }]);
+    setHistory(INITIAL_HISTORY);
     setCurrentMoveIndex(0);
     toast.info("Game reset!");
   };
