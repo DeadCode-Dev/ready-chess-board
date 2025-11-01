@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Chess, Square, PieceSymbol } from "chess.js";
+import { Chess, Square } from "chess.js";
 import { ChessSquare } from "./ChessSquare";
 import { CapturedPieces } from "./CapturedPieces";
 import { MoveHistory } from "./MoveHistory";
@@ -173,7 +173,7 @@ export const ChessBoard = () => {
       const move = {
         from: selectedSquare,
         to: square,
-        promotion: "q" as PieceSymbol, // Always promote to queen for simplicity
+        promotion: "q", // Always promote to queen for simplicity
       };
 
       try {
@@ -305,25 +305,15 @@ export const ChessBoard = () => {
 
   const sharePGN = () => {
     const pgn = exportPGN();
-    if (navigator.clipboard) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(pgn).then(() => {
         toast.success("PGN copied to clipboard!");
       }).catch(() => {
-        toast.error("Failed to copy PGN to clipboard");
+        toast.error("Failed to copy PGN to clipboard. Please try the Export PGN button instead.");
       });
     } else {
-      // Fallback for older browsers
-      const textarea = document.createElement('textarea');
-      textarea.value = pgn;
-      document.body.appendChild(textarea);
-      textarea.select();
-      try {
-        document.execCommand('copy');
-        toast.success("PGN copied to clipboard!");
-      } catch (err) {
-        toast.error("Failed to copy PGN to clipboard");
-      }
-      document.body.removeChild(textarea);
+      // Browser doesn't support clipboard API
+      toast.error("Clipboard not supported. Please use the Export PGN button to download the game.");
     }
   };
 
